@@ -43,20 +43,105 @@ FROM Jobs J JOIN Employees e
 ON j.job_id = e.job_id
 GROUP BY J.Job_title; 
 
-9. Find employees hired after 2005 with job titles
-10. List all locations with department names (if any)
-11. Show employees with commission and their total earnings
-12. Find job history records with current job comparison
-13. List regions → countries → cities hierarchy
-14. Show employees and their job grade level
-15. Find departments in Europe only
-16. List employees who changed jobs (job_history vs current)
-17. Show employees with highest salary per department
-18. Find employees reporting to Steven King directly/indirectly
-19. List jobs with min/max salary and actual salaries
-20. Show employees working in departments with >5 employees
+-- 6. Find employees earning more than their manager
+
+SELECT e.first_Name as "Employee_Name", e.Salary as "Employee Salary", m.Salary as "Manager Salary"
+FROM Employees e JOIN Employees m
+ON e.manager_id = m.employee_id
+WHERE e.salary > m.salary;
+
+-- 7. List employees who work in India
+
+SELECT e.first_Name, e.Last_Name, c.country_Name FROM Employees e JOIN Departments d
+ON e.department_id = d.department_id
+JOIN Locations l 
+ON d.Location_id = l.Location_id
+JOIN Countries c
+ON l.country_id = c.country_id
+WHERE c.country_name = 'India';
+
+-- 8. Show department managers and their department names
+
+SELECT DISTINCT m.first_name||' '||m.last_name as Manager_Name, d.department_name 
+FROM employees m JOIN departments d 
+ON m.employee_id = d.manager_id 
+WHERE d.manager_id IS NOT NULL;
+
+-- 9. Find employees hired after 2005 with job titles
+SELECT e.first_name, e.last_name, j.job_title 
+FROM employees e JOIN jobs j 
+ON e.job_id = j.job_id 
+WHERE e.hire_date > DATE'2005-01-01';
+
+-- 10. List all locations with department names (if any)
+SELECT l.city, d.department_name 
+FROM locations l LEFT JOIN departments d 
+ON l.location_id = d.location_id;
+
+-- 11. Show employees with commission and their total earnings
+SELECT e.last_name, e.salary + NVL(e.salary*e.commission_pct,0) as Total_earnings 
+FROM employees e 
+WHERE e.commission_pct IS NOT NULL;
+
+-- 12. Find job history records with current job comparison
+ SELECT jh.employee_id, jh.job_id old_job, e.job_id current_job 
+FROM job_history jh JOIN employees e 
+ON jh.employee_id = e.employee_id 
+WHERE jh.end_date < SYSDATE;
+
+-- 13. List regions → countries → cities hierarchy
+SELECT r.region_name, c.country_name, l.city 
+FROM regions r JOIN countries c 
+ON r.region_id = c.region_id 
+JOIN locations l 
+ON c.country_id = l.country_id;
+
+-- 14. Show employees and their job grade level
+SELECT e.last_name, e.salary, g.grade_level 
+FROM employees e JOIN job_grades g 
+ON e.salary BETWEEN g.lowest_sal AND g.highest_sal;
+
+-- 15. Find departments in Europe only
+SELECT DISTINCT d.department_name FROM departments d JOIN locations l 
+ON d.location_id = l.location_id 
+JOIN countries c 
+ON l.country_id = c.country_id 
+JOIN regions r 
+ON c.region_id = r.region_id 
+WHERE r.region_name = 'Europe';
+
+-- 16. List employees who changed jobs (job_history vs current)
+SELECT DISTINCT e.employee_id, e.last_name 
+FROM employees e JOIN job_history jh 
+ON e.employee_id = jh.employee_id 
+WHERE e.job_id != jh.job_id;
+
+-- 17. Show employees with highest salary per department
+SELECT e1.* FROM employees e1 JOIN (SELECT department_id, MAX(salary) max_sal FROM
+employees GROUP BY department_id) e2 
+ON e1.department_id = e2.department_id AND e1.salary = e2.max_sal;
+
+-- 18. Find employees reporting to Steven King directly/indirectly
+SELECT e.* FROM employees e START WITH e.manager_id = 100 CONNECT BY PRIOR
+employee_id = manager_id;
+
+-- 19. List jobs with min/max salary and actual salaries
+SELECT j.job_title, j.min_salary, j.max_salary, AVG(e.salary) avg_salary 
+FROM jobs j LEFT JOIN employees e 
+ON j.job_id = e.job_id 
+GROUP BY j.job_title, j.min_salary, j.max_salary;
+
+-- 20. Show employees working in departments with >5 employees
+SELECT d.department_name FROM departments d JOIN employees e 
+ON d.department_id = e.department_id 
+GROUP BY d.department_name 
+HAVING COUNT(e.employee_id) > 5;
+
+-- ==============================================================================================
 21-35: SUBQUERIES
-21. Find 2nd highest salary employee
+-- ==============================================================================================
+
+  21. Find 2nd highest salary employee
 22. Show employees earning above department average
 23. List departments with salary > company average
 24. Find employees who earn more than all IT department employees
