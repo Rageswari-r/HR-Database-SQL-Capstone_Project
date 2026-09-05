@@ -1,16 +1,48 @@
 -- HR Database SQL Capstone Project
 -- 100 SQL Practice & Business Questions
+
+Select * from Regions;
+Select * from Countries;
+Select * from Locations;
+Select * from Departments;
+Select * from Jobs;
+Select * from Employees;
+Select * from Job_history;
+Select * from Job_Grades;
 ==========================================================================================================================================
 1-20: BASIC JOINS
 ==========================================================================================================================================
-1. List all employees with their department names
-2. Show employees and their manager names (self-join)
-3. Find employees and their city of work
-4. List departments with no employees
-5. Show jobs with employee count per job
-6. Find employees earning more than their manager
-7. List employees who work in India
-8. Show department managers and their department names
+-- 1. List all employees with their department names
+
+SELECT e.First_Name, e.last_Name, d.department_Name 
+FROM employees e JOIN departments d
+ON e.department_id = d.department_id;
+
+-- 2. Show employees and their manager names (self-join)
+
+SELECT e.first_name||' '||e.last_name as "Employee Name", m.first_name||' '||m.last_name as "Manager Name" 
+FROM employees e LEFT JOIN employees m 
+ON e.manager_id = m.employee_id;
+
+-- 3. Find employees and their city of work
+
+Select e.first_Name ||' '||e.last_Name as "Employee_Name", L.City as "City"
+FROM Employees e JOIN departments d ON e.department_id = d.department_id
+JOIN Locations L ON d.Location_id = L.Location_id;
+
+-- 4. List departments with no employees
+
+SELECT d.department_Name FROM departments d LEFT JOIN employees e
+ON d.department_id = e.department_id
+WHERE e.employee_id IS NULL;
+
+-- 5. Show jobs with employee count per job
+
+SELECT J.Job_title, COUNT(e.employee_id) as "Employee Count" 
+FROM Jobs J JOIN Employees e
+ON j.job_id = e.job_id
+GROUP BY J.Job_title; 
+
 9. Find employees hired after 2005 with job titles
 10. List all locations with department names (if any)
 11. Show employees with commission and their total earnings
