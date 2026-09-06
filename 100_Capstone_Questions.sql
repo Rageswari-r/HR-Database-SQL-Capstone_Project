@@ -138,99 +138,399 @@ GROUP BY d.department_name
 HAVING COUNT(e.employee_id) > 5;
 
 -- ==============================================================================================
-21-35: SUBQUERIES
--- ==============================================================================================
+-- 21-35: SUBQUERIES
+=================================================================================================
 
-  21. Find 2nd highest salary employee
-22. Show employees earning above department average
-23. List departments with salary > company average
-24. Find employees who earn more than all IT department employees
-25. Show top 3 highest paid employees per department
-26. Find employees hired on same day as their manager
-27. List jobs never assigned to any employee
-28. Show employees with salary in job grade range
-29. Find departments with no job history records
-30. List employees who have job history records
-31. Show cities with no departments located
-32. Find employees earning exactly average salary
-33. List managers who manage >5 employees
-34. Show regions with no countries
-35. Find employees whose salary matches someone else's
-==========================================================================================================================================
-36-50: WINDOW FUNCTIONS
-==========================================================================================================================================
-36. Show employee rank by salary globally
-37. Rank employees by salary within each department
-38. Show running total of salaries by hire date
-39. Find salary difference from department average
-40. Show top 3 salaries per job title (DENSE_RANK)
-41. Calculate year-to-date salary per employee
-42. Find employees with consecutive job changes
-43. Show salary percentile within departments
-44. List employees with salary growth % vs previous job
-45. Show department-wise salary distribution (NTILE)
-46. Find first/last employee hired per department
-47. Calculate moving average salary (3-month window)
-48. Show employees above/below department median salary
-49. Rank employees by total compensation (salary+commission)
-50. Find salary gaps between consecutive employees
-==========================================================================================================================================
-51-65: STRING & NUMBER FUNCTIONS
-==========================================================================================================================================
-51. Format employee names as "LAST, FIRST"
-52. Extract year from hire_date
-53. Show employee full names in uppercase
-54. Find emails ending with company domain
-55. Calculate employee age from hire_date
-56. Show phone numbers formatted as XXX-XXX-XXXX
-57. Concatenate city, state, country
-58. Find employees whose name contains "an"
-59. Calculate total years worked per employee
-60. Show salary with currency formatting
-61. Extract numeric salary from text
-62. Find employees with names >15 characters
-63. Generate employee ID as DEPT_EMP001 format
-64. Calculate commission as percentage of salary
-65. Show department names padded to 20 chars
-==========================================================================================================================================
-66-80: REGEX & LOGICAL OPERATORS
-==========================================================================================================================================
-66. Find emails with valid format (regex)
-67. Show employees whose name starts with vowel
-68. List phone numbers with country code +91
-69. Find cities matching pattern "San*"
-70. Show employees NOT working in US/UK
-71. List jobs with "Manager" OR "Director" in title
-72. Find employees with salary BETWEEN 5000-15000
-73. Show records where city IS NULL or empty
-74. List employees whose name contains AND "a" OR "e"
-75. Find job titles matching pattern "IT_*"
-76. Show departments where manager_id IS NULL
-77. List employees with commission > salary*0.1
-78. Find cities NOT LIKE 'San%'
-79. Show employees hired 2005 AND salary >10000
-80. List records where ANY condition matches
-==========================================================================================================================================
-81-100: REAL-TIME INTERVIEW QUESTIONS
-==========================================================================================================================================
-81. Find duplicate emails (if any exist)
-82. Show employees with >10% salary growth in job history
-83. Calculate department wise salary variance
-84. Pivot job titles to columns with employee count
-85. Find employees who worked in multiple countries
-86. Show top 10% earners globally
-87. Calculate 90-day retention rate by department
-88. Find employees with gaps in employment >6 months
-89. Show correlation between salary and hire year
-90. Generate employee performance bands (A/B/C grades)
-91. Find departments with highest salary dispersion
-92. Show employees eligible for promotion (top 20%)
-93. Calculate ROI on training (salary growth post-hire)
-94. Find employees violating job salary range
-95. Show cross-tab of departments by regions
-96. Calculate employee turnover rate by job
-97. Find employees with inconsistent department history
-98. Show salary compression issues (new hires vs seniors)
-99. Generate cohort analysis by hire month
-100. Find employees for layoff (bottom 10% performers)
+-- 21. Find 2nd highest salary employee
+SELECT MIN(salary) 
+FROM (SELECT DISTINCT salary FROM employees ORDER BY salary DESC)
+WHERE ROWNUM <= 2;
+
+-- 22. Show employees earning above department average
+SELECT e.* FROM employees e WHERE e.salary > (SELECT AVG(salary) FROM employees e2
+WHERE e2.department_id = e.department_id);
+
+
+-- 23. List departments with salary > company average
+SELECT department_id FROM employees 
+GROUP BY department_id HAVING AVG(salary) >
+(SELECT AVG(salary) FROM employees);
+
+-- 24. Find employees who earn more than all IT department employees
+SELECT e.* FROM employees e 
+WHERE e.salary > ALL (SELECT salary FROM employees e2 JOIN departments d 
+ON e2.department_id = d.department_id 
+WHERE d.department_name = 'IT');
+
+-- 25. Show top 3 highest paid employees per department
+SELECT * FROM (SELECT e.*, DENSE_RANK() OVER 
+(PARTITION BY department_id 
+ORDER BY salary DESC) as Rank 
+FROM employees e) WHERE Rank <= 3;
+
+-- 26. Find employees hired on same day as their manager
+SELECT e.* FROM employees e 
+WHERE e.hire_date = (SELECT hire_date FROM employees
+WHERE employee_id = e.manager_id);
+
+-- 27. List jobs never assigned to any employee
+SELECT job_id FROM jobs 
+WHERE job_id NOT IN (SELECT DISTINCT job_id FROM employees
+WHERE job_id IS NOT NULL);
+
+-- 28. Show employees with salary in job grade range
+SELECT e.* FROM employees e 
+WHERE e.salary IN (SELECT salary FROM job_grades
+WHERE grade_level = (SELECT grade_level FROM job_grades g1 
+WHERE e.salary BETWEEN g1.lowest_sal AND g1.highest_sal));
+
+-- 29. Find departments with no job history records
+SELECT d.department_id FROM departments d 
+WHERE d.department_id NOT IN (SELECT DISTINCT department_id 
+FROM job_history 
+WHERE department_id IS NOT NULL);
+
+-- 30. List employees who have job history records
+SELECT DISTINCT e.* FROM employees e
+WHERE e.employee_id IN (SELECT employee_id FROM job_history);
+
+-- 31. Show cities with no departments located
+SELECT city FROM locations 
+WHERE location_id NOT IN (SELECT location_id FROM departments 
+WHERE location_id IS NOT NULL);
+
+-- 32. Find employees earning exactly average salary
+SELECT * FROM employees 
+WHERE salary = (SELECT AVG(salary) FROM employees);
+
+-- 33. List managers who manage >5 employees
+SELECT m.* FROM employees m 
+JOIN (SELECT manager_id, COUNT(*) cnt FROM employees
+WHERE manager_id IS NOT NULL 
+GROUP BY manager_id 
+HAVING COUNT(*) > 5) mgr 
+ON m.employee_id = mgr.manager_id;
+
+-- 34. Show regions with no countries
+SELECT * FROM regions 
+WHERE region_id NOT IN (SELECT region_id FROM countries);
+
+-- 35. Find employees whose salary matches someone else's
+SELECT * FROM employees e1 
+WHERE salary IN (SELECT salary FROM employees e2 
+WHERE e1.employee_id != e2.employee_id);
+
+-- ==============================================================================================
+-- 36-50: WINDOW FUNCTIONS
+=================================================================================================
+
+-- 36. Show employee rank by salary globally
+SELECT employee_id, last_name, salary, RANK() 
+OVER (ORDER BY salary DESC)
+salary_rank FROM employees;
+
+-- 37. Rank employees by salary within each department
+SELECT employee_id, last_name, department_id, salary, RANK() 
+OVER (PARTITION BY department_id ORDER BY salary DESC) dept_rank FROM employees;
+
+-- 38. Show running total of salaries by hire date
+SELECT employee_id, hire_date, salary, SUM(salary) 
+OVER (ORDER BY hire_date ROWS UNBOUNDED PRECEDING) running_total 
+FROM employees ORDER BY hire_date;
+
+-- 39. Find salary difference from department average
+SELECT employee_id, department_id, salary, salary - AVG(salary) 
+OVER (PARTITION BY department_id) salary_vs_dept_avg FROM employees;
+
+-- 40. Show top 3 salaries per job title (DENSE_RANK)
+SELECT * FROM (SELECT job_id, salary, DENSE_RANK() 
+OVER (PARTITION BY job_id 
+ORDER BY salary DESC) rnk 
+FROM employees) WHERE rnk <= 3;
+
+-- 41. Calculate year-to-date salary per employee
+SELECT employee_id, hire_date, salary * (SYSDATE - hire_date)/365 ytd_salary 
+FROM employees;
+
+-- 42. Find employees with consecutive job changes
+SELECT DISTINCT employee_id 
+FROM (SELECT employee_id, job_id, LAG(job_id) 
+OVER (PARTITION BY employee_id
+ORDER BY start_date) AS previous_job
+FROM job_history)
+WHERE previous_job IS NOT NULL AND previous_job <> job_id;
+
+-- 43. Show salary percentile within departments
+SELECT employee_id, salary, NTILE(4) 
+OVER (PARTITION BY department_id 
+ORDER BY salary) salary_quartile FROM employees;
+
+-- 44. List employees who have changed jobs more than once
+SELECT employee_id, COUNT(*) AS job_changes
+FROM job_history
+GROUP BY employee_id
+HAVING COUNT(*) > 1;
+
+-- 45. Show department-wise salary distribution (NTILE)
+SELECT employee_id, department_id, salary, NTILE(5) 
+OVER (PARTITION BY department_id
+ORDER BY salary) salary_bucket FROM employees;
+
+-- 46. Find first/last employee hired per department
+SELECT FIRST_VALUE(employee_id) 
+OVER (PARTITION BY department_id ORDER BY hire_date)
+first_hired, LAST_VALUE(employee_id) 
+OVER (PARTITION BY department_id ORDER BY hire_date 
+ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) last_hired FROM employees;
+
+-- 47. Calculate moving average salary (3-month window)
+SELECT employee_id, hire_date, salary, AVG(salary) 
+OVER (ORDER BY hire_date ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) moving_avg 
+FROM employees ORDER BY hire_date;
+
+-- 48. Show employees above/below department median salary
+SELECT employee_id, department_id, salary, CASE WHEN salary > PERCENTILE_CONT(0.5)
+WITHIN GROUP (ORDER BY salary)
+OVER (PARTITION BY department_id)
+THEN 'Above Median' ELSE 'Below Median'
+END AS status FROM employees;
+
+-- 49. Rank employees by total compensation (salary+commission)
+SELECT employee_id, salary + NVL(salary*commission_pct,0) total_comp, RANK() 
+OVER (ORDER BY salary + NVL(salary*commission_pct,0) DESC) comp_rank FROM employees;
+
+-- 50. Find salary gaps between consecutive employees
+SELECT employee_id, salary, salary - LAG(salary) 
+OVER (ORDER BY salary) AS salary_gap FROM employees 
+ORDER BY salary;
+
+=================================================================================================
+-- 51-65: STRING & NUMBER FUNCTIONS
+=================================================================================================
+
+-- 51. Format employee names as "LAST, FIRST"
+SELECT UPPER(last_name)||', '||first_name AS formatted_name FROM employees;
+
+-- 52. Extract year from hire_date
+SELECT EXTRACT(YEAR FROM hire_date) hire_year FROM employees;
+
+-- 53. Show employee full names in uppercase
+SELECT UPPER(first_name||' '||last_name) full_name FROM employees;
+
+-- 54. Find emails ending with company domain
+SELECT email FROM employees 
+WHERE REGEXP_LIKE(email, '@company\.com$');
+ 
+-- 55. Calculate employee age from hire_date
+SELECT last_name, ROUND((SYSDATE - hire_date)/365) years_employed FROM employees;
+
+-- 56. Show phone numbers formatted as XXX-XXX-XXXX
+SELECT REGEXP_REPLACE(phone_number, '(\d{3})(\d{3})(\d{4})', '\\1-\\2-\\3') 
+FROM employees WHERE phone_number IS NOT NULL;
+
+-- 57. Concatenate city, state, country
+SELECT l.city||', '||l.state_province||', '||c.country_name full_address 
+FROM locations l JOIN countries c 
+ON l.country_id = c.country_id;
+
+-- 58. Find employees whose name contains "an"
+SELECT last_name FROM employees 
+WHERE UPPER(last_name) LIKE '%AN%';
+
+-- 59. Calculate total years worked per employee
+SELECT employee_id, ROUND((SYSDATE - hire_date)/365.25, 1) years_worked 
+FROM employees ORDER BY years_worked DESC;
+
+-- 60. Show salary with currency formatting
+SELECT TO_CHAR(salary, '$99,999.00') formatted_salary FROM employees;
+
+-- 61. Extract numeric salary from text
+SELECT REGEXP_REPLACE(salary, '[^0-9.]', '') numeric_salary FROM employees;
+
+-- 62. Find employees with names >15 characters
+SELECT last_name FROM employees WHERE LENGTH(last_name) > 15;
+
+-- 63. Generate employee ID as DEPT_EMP001 format
+SELECT 'DEPT_'||LPAD(department_id,3,'0')||'_'||LPAD(employee_id,3,'0') emp_id 
+FROM employees;
+
+-- 64. Calculate commission as percentage of salary
+SELECT employee_id, salary, commission_pct, salary*commission_pct commission_amount
+FROM employees WHERE commission_pct IS NOT NULL;
+
+-- 65. Show department names padded to 20 chars
+SELECT RPAD(department_name, 20, '*') padded_dept FROM departments;
+
+=================================================================================================
+-- 66-80: REGEX & LOGICAL OPERATORS
+=================================================================================================
+
+-- 66. Find emails with valid format (regex)
+SELECT email FROM employees 
+WHERE REGEXP_LIKE
+(email, '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$');
+
+-- 67. Show employees whose name starts with vowel
+SELECT first_name FROM employees 
+WHERE REGEXP_LIKE(first_name, '^[AEIOUaeiou]');
+
+-- 68. List phone numbers with country code +91
+SELECT phone_number FROM employees 
+WHERE phone_number LIKE '+91%';
+
+-- 69. Find cities matching pattern "San*"
+SELECT city FROM locations WHERE city LIKE 'San%';
+
+-- 70. Show employees NOT working in US/UK
+SELECT e.* FROM employees e JOIN departments d 
+ON e.department_id = d.department_id
+JOIN locations l ON d.location_id = l.location_id 
+JOIN countries c ON l.country_id = c.country_id 
+WHERE c.country_id NOT IN ('US','UK');
+
+-- 71. List jobs with "Manager" OR "Director" in title
+SELECT job_title FROM jobs WHERE UPPER(job_title) 
+LIKE '%MANAGER%' OR UPPER(job_title) LIKE '%DIRECTOR%';
+
+-- 72. Find employees with salary BETWEEN 5000-15000
+SELECT * FROM employees WHERE salary BETWEEN 5000 AND 15000;
+
+-- 73. Show records where city IS NULL or empty
+SELECT city FROM locations WHERE city IS NULL OR TRIM(city) = '';
+
+-- 74. List employees whose name contains AND "a" OR "e"
+SELECT first_name, last_name FROM employees 
+WHERE last_name LIKE '%a%' OR last_name LIKE '%e%';
+
+-- 75. Find job titles matching pattern "IT_*"
+SELECT job_title FROM jobs WHERE REGEXP_LIKE(job_id, '^IT_');
+
+-- 76. Show departments where manager_id IS NULL
+ SELECT department_name FROM departments WHERE manager_id IS NULL;
+
+-- 77. List employees with commission > salary*0.1
+SELECT employee_id FROM employees WHERE commission_pct > 0.1;
+
+-- 78. Find cities NOT LIKE 'San%'
+SELECT city FROM locations WHERE city NOT LIKE 'San%';
+
+-- 79. Show employees hired 2005 AND salary >10000
+SELECT * FROM employees WHERE hire_date >= DATE'2005-01-01' AND salary > 10000;
+
+-- 80. List records where ANY condition matches
+SELECT * FROM employees WHERE department_id = 90 OR job_id = 'IT_PROG';
+
+=================================================================================================
+-- 81-100: REAL-TIME INTERVIEW QUESTIONS
+=================================================================================================
+
+-- 81. Find duplicate emails (if any exist)
+SELECT email, COUNT(*) FROM employees GROUP BY email HAVING COUNT(*) > 1;
+
+-- 82. Show employees with >10% salary growth in job history
+SELECT jh.employee_id FROM job_history jh 
+JOIN employees e ON jh.employee_id = e.employee_id 
+WHERE e.salary > (SELECT salary FROM employees e2 JOIN job_history jh2 
+ON e2.employee_id = jh2.employee_id 
+WHERE jh2.employee_id = jh.employee_id AND jh2.end_date < jh.start_date 
+ORDER BY jh2.end_date DESC FETCH FIRST 1 ROW ONLY) * 1.1;
+
+-- 83. Calculate department wise salary variance
+SELECT department_id, VARIANCE(salary) FROM employees 
+GROUP BY department_id ORDER BY VARIANCE(salary) DESC;
+
+-- 84. Pivot job titles to columns with employee count
+SELECT * FROM (SELECT job_id, COUNT(*) FROM employees 
+GROUP BY job_id) PIVOT(COUNT(*) FOR job_id 
+IN ('AD_PRES' pres, 'IT_PROG' prog, 'SA_REP' sales));
+
+-- 85. Find employees who worked in multiple countries
+SELECT DISTINCT e.employee_id FROM employees e 
+JOIN departments d ON e.department_id = d.department_id 
+JOIN locations l ON d.location_id = l.location_id 
+JOIN job_history jh ON e.employee_id = jh.employee_id 
+JOIN departments dh ON jh.department_id = dh.department_id 
+JOIN locations lh ON dh.location_id = lh.location_id 
+WHERE l.country_id != lh.country_id;
+
+-- 86. Show top 10% earners globally
+SELECT * FROM (SELECT salary, PERCENT_RANK() 
+OVER (ORDER BY salary) pct FROM employees) WHERE pct <= 0.1;
+
+-- 87. Calculate 90-day retention rate by department
+SELECT department_id, 
+COUNT(CASE WHEN SYSDATE - hire_date <= 90 THEN 1 END)*100/COUNT(*) retention_rate 
+FROM employees GROUP BY department_id;
+
+-- 88. Find employees with gaps in employment >6 months
+SELECT employee_id FROM (SELECT employee_id, start_date,LAG(end_date) 
+OVER (PARTITION BY employee_id
+ORDER BY start_date) AS prev_end FROM job_history)
+WHERE start_date - prev_end > 180;
+
+-- 89. Show correlation between salary and hire year
+SELECT CORR(EXTRACT(YEAR FROM hire_date), salary) FROM employees;
+
+-- 90. Generate employee performance bands (A/B/C grades)
+SELECT CORR(EXTRACT(YEAR FROM hire_date), salary) FROM employees;
+
+-- 91. Find departments with highest salary dispersion
+SELECT department_id, STDDEV(salary)/AVG(salary) dispersion 
+FROM employees GROUP BY department_id ORDER BY dispersion DESC;
+
+-- 92. Show employees in the top 20% by salary within each department.
+SELECT * FROM (SELECT e.*,PERCENT_RANK() 
+OVER (PARTITION BY department_id
+ORDER BY salary DESC) AS salary_percent_rank FROM employees e)
+WHERE salary_percent_rank <= 0.20
+ORDER BY department_id, salary DESC;
+
+-- 93. Find employees who have held more than one job.
+SELECT employee_id, COUNT(DISTINCT job_id) AS job_count
+FROM job_history GROUP BY employee_id
+HAVING COUNT(DISTINCT job_id) > 1;
+
+-- 94. Find employees violating job salary range
+SELECT e.* FROM employees e JOIN jobs j 
+ON e.job_id = j.job_id 
+WHERE e.salary < j.min_salary OR e.salary > j.max_salary;
+
+-- 95. Show cross-tab of departments by regions
+SELECT r.region_name, d.department_name, COUNT(e.employee_id) emp_count 
+FROM regions r JOIN countries c ON r.region_id = c.region_id 
+JOIN locations l ON c.country_id = l.country_id 
+JOIN departments d ON l.location_id = d.location_id 
+LEFT JOIN employees e ON d.department_id = e.department_id 
+GROUP BY r.region_name, d.department_name;
+
+-- 96. Calculate employee turnover rate by job
+SELECT j.job_title, COUNT(DISTINCT CASE WHEN jh.end_date IS NOT NULL THEN
+e.employee_id END)*100/COUNT(DISTINCT e.employee_id) turnover_rate FROM jobs j 
+JOIN employees e ON j.job_id = e.job_id 
+LEFT JOIN job_history jh ON e.employee_id = jh.employee_id 
+GROUP BY j.job_title;
+
+-- 97. Find employees with inconsistent department history
+SELECT DISTINCT e.employee_id FROM employees e 
+JOIN job_history jh ON e.employee_id = jh.employee_id 
+WHERE e.department_id != jh.department_id;
+
+-- 98. Show salary compression issues (new hires vs seniors)
+SELECT e1.last_name new_hire, e2.last_name senior, 
+e1.salary new_salary, e2.salary senior_salary 
+FROM employees e1 
+JOIN employees e2 ON e1.department_id = e2.department_id
+WHERE e1.hire_date > e2.hire_date AND e1.salary > e2.salary;
+
+-- 99. Generate cohort analysis by hire month
+SELECT TRUNC(hire_date, 'MM') hire_month, COUNT(*) cohort_size, 
+AVG(CASE WHEN SYSDATE - hire_date <= 365 THEN 1 ELSE 0 END)*100 retention 
+FROM employees GROUP BY TRUNC(hire_date, 'MM') 
+ORDER BY hire_month;
+
+-- 100. Find employees in the bottom 10% by salary
+SELECT * FROM (SELECT e.*, RANK() OVER (ORDER BY salary ASC) AS perf_rank,
+COUNT(*) OVER () AS total_employees FROM employees e)
+WHERE perf_rank <= total_employees * 0.10;
+
 ==========================================================================================================================================
